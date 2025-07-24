@@ -102,6 +102,46 @@ impl Cursor {
         }
     }
     
+    pub fn move_to_end_of_word(&mut self, content: &[String]) {
+        if let Some(line) = content.get(self.position.row) {
+            let chars: Vec<char> = line.chars().collect();
+            if chars.is_empty() {
+                return;
+            }
+            
+            let mut pos = self.position.col;
+            
+            // If we're at the end of a word, move to the end of the next word
+            if pos < chars.len() && chars[pos].is_alphanumeric() {
+                // Skip current word
+                while pos < chars.len() && chars[pos].is_alphanumeric() {
+                    pos += 1;
+                }
+            }
+            
+            // Skip whitespace to get to next word
+            while pos < chars.len() && !chars[pos].is_alphanumeric() {
+                pos += 1;
+            }
+            
+            // Move to end of the word
+            while pos < chars.len() && chars[pos].is_alphanumeric() {
+                pos += 1;
+            }
+            
+            // Back up one to be ON the last character of the word
+            if pos > 0 {
+                pos -= 1;
+            }
+            
+            // Make sure we don't go past the line
+            pos = pos.min(chars.len().saturating_sub(1));
+            
+            self.position.col = pos;
+            self.desired_col = pos;
+        }
+    }
+    
     pub fn move_word_backward(&mut self, content: &[String]) {
         if let Some(line) = content.get(self.position.row) {
             let chars: Vec<char> = line.chars().collect();

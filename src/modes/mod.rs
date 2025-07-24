@@ -26,6 +26,7 @@ pub struct ModeManager {
     current_mode: Mode,
     last_mode: Mode,
     command_buffer: String,
+    last_search_pattern: String,
 }
 
 impl ModeManager {
@@ -34,6 +35,7 @@ impl ModeManager {
             current_mode: Mode::Normal,
             last_mode: Mode::Normal,
             command_buffer: String::new(),
+            last_search_pattern: String::new(),
         }
     }
     
@@ -105,13 +107,15 @@ impl ModeManager {
             }
             KeyCode::Char('e') => {
                 // Move to end of word
-                buffer_manager.move_word_forward();
-                buffer_manager.move_cursor_left(); // Adjust to end of word
+                if let Some(buffer) = buffer_manager.current_buffer_mut() {
+                    buffer.cursor.move_to_end_of_word(&buffer.content);
+                }
             }
             KeyCode::Char('E') => {
-                // Move to end of WORD
-                buffer_manager.move_word_forward();
-                buffer_manager.move_cursor_left(); // Adjust to end of word
+                // Move to end of WORD (for now, same as 'e')
+                if let Some(buffer) = buffer_manager.current_buffer_mut() {
+                    buffer.cursor.move_to_end_of_word(&buffer.content);
+                }
             }
             
             // Line navigation
@@ -183,6 +187,38 @@ impl ModeManager {
                 buffer_manager.redo();
             }
             
+            // Search navigation
+            KeyCode::Char('n') => {
+                // Next search match
+                if !self.last_search_pattern.is_empty() {
+                    self.search_in_buffer(&self.last_search_pattern.clone(), buffer_manager);
+                }
+            }
+            KeyCode::Char('N') => {
+                // Previous search match  
+                if !self.last_search_pattern.is_empty() {
+                    self.search_backward_in_buffer(&self.last_search_pattern.clone(), buffer_manager);
+                }
+            }
+            
+            // Search word under cursor
+            KeyCode::Char('*') => {
+                if let Some(word) = self.get_word_under_cursor(buffer_manager) {
+                    self.last_search_pattern = word.clone();
+                    self.search_in_buffer(&word, buffer_manager);
+                }
+            }
+            
+            // Buffer navigation
+            KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // Next buffer (Ctrl+n)
+                buffer_manager.next_buffer();
+            }
+            KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // Previous buffer (Ctrl+p)  
+                buffer_manager.previous_buffer();
+            }
+            
             _ => {}
         }
         Ok(())
@@ -247,29 +283,169 @@ impl ModeManager {
     fn execute_command(&mut self, command: &str, buffer_manager: &mut BufferManager) -> Result<()> {
         let trimmed = command.trim();
         
-        match trimmed {
-            "q" | "quit" => {
-                // For now, just return to normal mode - app handles quit with space+q
+        if trimmed.starts_with('/') {
+            // Search command
+            let pattern = &trimmed[1..];
+            if !pattern.is_empty() {
+                self.last_search_pattern = pattern.to_string();
+                self.search_in_buffer(pattern, buffer_manager);
             }
-            "w" | "write" => {
-                let _ = buffer_manager.save_current();
-            }
-            "wq" => {
-                let _ = buffer_manager.save_current();
-                // For now, just return to normal mode
-            }
-            cmd if cmd.starts_with("w ") => {
-                // Save as - extract filename
-                let filename = &cmd[2..].trim();
-                if let Some(buffer) = buffer_manager.current_buffer_mut() {
-                    let _ = buffer.save_as(filename);
+        } else {
+            // Regular ex commands
+            match trimmed {
+                "q" | "quit" => {
+                    // TODO: Implement proper quit - for now just return to normal
                 }
-            }
-            _ => {
-                // Unknown command - ignore for now
+                "q!" => {
+                    // Force quit - TODO: implement
+                }
+                "w" | "write" => {
+                    let _ = buffer_manager.save_current();
+                }
+                "wq" | "x" => {
+                    let _ = buffer_manager.save_current();
+                    // TODO: Should quit after save
+                }
+                "wq!" => {
+                    let _ = buffer_manager.save_current();
+                    // TODO: Force save and quit
+                }
+                cmd if cmd.starts_with("w ") => {
+                    // Save as - extract filename
+                    let filename = cmd[2..].trim();
+                    if let Some(buffer) = buffer_manager.current_buffer_mut() {
+                        let _ = buffer.save_as(filename);
+                    }
+                }
+                cmd if cmd.starts_with("e ") => {
+                    // Edit file - extract filename
+                    let filename = cmd[2..].trim();
+                    let _ = buffer_manager.open_file(filename);
+                }
+                _ => {
+                    // Unknown command - ignore for now
+                }
             }
         }
         
         Ok(())
+    }
+    
+    fn search_in_buffer(&mut self, pattern: &str, buffer_manager: &mut BufferManager) {
+        if let Some(buffer) = buffer_manager.current_buffer_mut() {
+            let start_row = buffer.cursor.position().row;
+            let start_col = buffer.cursor.position().col + 1; // Start search after current position
+            
+            // Search from current position to end of file
+            for (row_idx, line) in buffer.content.iter().enumerate().skip(start_row) {
+                let search_start = if row_idx == start_row { start_col } else { 0 };
+                let line_from_start = &line[search_start.min(line.len())..];
+                
+                if let Some(pos) = line_from_start.find(pattern) {
+                    // Found match - move cursor there
+                    let col = search_start + pos;
+                    buffer.cursor.move_to_position(crate::core::cursor::Position { 
+                        row: row_idx, 
+                        col 
+                    });
+                    return;
+                }
+            }
+            
+            // If not found from current position, search from beginning
+            for (row_idx, line) in buffer.content.iter().enumerate() {
+                if row_idx >= start_row {
+                    break; // We already searched this area
+                }
+                
+                if let Some(pos) = line.find(pattern) {
+                    // Found match - move cursor there
+                    buffer.cursor.move_to_position(crate::core::cursor::Position { 
+                        row: row_idx, 
+                        col: pos 
+                    });
+                    return;
+                }
+            }
+            
+            // Pattern not found - could show message but for now just do nothing
+        }
+    }
+    
+    fn search_backward_in_buffer(&mut self, pattern: &str, buffer_manager: &mut BufferManager) {
+        if let Some(buffer) = buffer_manager.current_buffer_mut() {
+            let start_row = buffer.cursor.position().row;
+            let start_col = if buffer.cursor.position().col > 0 { 
+                buffer.cursor.position().col - 1 
+            } else { 
+                0 
+            };
+            
+            // Search backward from current position to beginning
+            for row_idx in (0..=start_row).rev() {
+                let line = &buffer.content[row_idx];
+                let search_end = if row_idx == start_row { start_col } else { line.len() };
+                let line_to_search = &line[..search_end.min(line.len())];
+                
+                if let Some(pos) = line_to_search.rfind(pattern) {
+                    // Found match - move cursor there
+                    buffer.cursor.move_to_position(crate::core::cursor::Position { 
+                        row: row_idx, 
+                        col: pos 
+                    });
+                    return;
+                }
+            }
+            
+            // If not found from current position, search from end
+            for row_idx in (start_row + 1..buffer.content.len()).rev() {
+                let line = &buffer.content[row_idx];
+                if let Some(pos) = line.rfind(pattern) {
+                    // Found match - move cursor there
+                    buffer.cursor.move_to_position(crate::core::cursor::Position { 
+                        row: row_idx, 
+                        col: pos 
+                    });
+                    return;
+                }
+            }
+            
+            // Pattern not found
+        }
+    }
+    
+    fn get_word_under_cursor(&self, buffer_manager: &BufferManager) -> Option<String> {
+        if let Some(buffer) = buffer_manager.current_buffer() {
+            let pos = buffer.cursor.position();
+            if let Some(line) = buffer.content.get(pos.row) {
+                let chars: Vec<char> = line.chars().collect();
+                if pos.col >= chars.len() {
+                    return None;
+                }
+                
+                // Find start of word
+                let mut start = pos.col;
+                while start > 0 && chars[start - 1].is_alphanumeric() {
+                    start -= 1;
+                }
+                
+                // Find end of word
+                let mut end = pos.col;
+                while end < chars.len() && chars[end].is_alphanumeric() {
+                    end += 1;
+                }
+                
+                if end > start {
+                    let word: String = chars[start..end].iter().collect();
+                    Some(word)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 } 

@@ -48,7 +48,8 @@ impl UI {
         // Render status line or command line
         if mode_manager.current_mode() == Mode::Command {
             self.render_command_line(frame, mode_manager, chunks[1]);
-        } else if self.config.ui.show_status_line {
+        } else {
+            // Always show status line to display current file info
             self.render_status_line(frame, buffer_manager, mode_manager, chunks[1]);
         }
     }
@@ -95,12 +96,8 @@ impl UI {
             frame.render_widget(paragraph, area);
             
             // Render cursor
-            if let Some(line) = buffer.content.get(cursor_pos.row) {
-                let line_offset = if cursor_pos.row >= start_line && cursor_pos.row < end_line {
-                    cursor_pos.row - start_line
-                } else {
-                    return; // Cursor not visible
-                };
+            if cursor_pos.row >= start_line && cursor_pos.row < end_line {
+                let line_offset = cursor_pos.row - start_line;
                 
                 let col_offset = if self.config.ui.show_line_numbers {
                     cursor_pos.col + 5 // Account for line numbers
@@ -163,7 +160,15 @@ impl UI {
     }
     
     fn render_command_line(&self, frame: &mut Frame, mode_manager: &ModeManager, area: Rect) {
-        let command_text = format!(":{}", mode_manager.command_buffer());
+        let buffer = mode_manager.command_buffer();
+        let command_text = if buffer.starts_with('/') {
+            // Search mode - already has / prefix
+            buffer.to_string()
+        } else {
+            // Command mode - add : prefix
+            format!(":{}", buffer)
+        };
+        
         let command_line = Paragraph::new(command_text)
             .style(Style::default().fg(Color::White).bg(Color::DarkGray));
         

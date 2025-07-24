@@ -292,6 +292,38 @@ impl BufferManager {
         self.buffers.values().collect()
     }
     
+    pub fn next_buffer(&mut self) {
+        if self.buffers.len() <= 1 {
+            return;
+        }
+        
+        let buffer_ids: Vec<usize> = self.buffers.keys().copied().collect();
+        if let Some(current_id) = self.current_buffer_id {
+            if let Some(current_pos) = buffer_ids.iter().position(|&id| id == current_id) {
+                let next_pos = (current_pos + 1) % buffer_ids.len();
+                self.current_buffer_id = Some(buffer_ids[next_pos]);
+            }
+        }
+    }
+    
+    pub fn previous_buffer(&mut self) {
+        if self.buffers.len() <= 1 {
+            return;
+        }
+        
+        let buffer_ids: Vec<usize> = self.buffers.keys().copied().collect();
+        if let Some(current_id) = self.current_buffer_id {
+            if let Some(current_pos) = buffer_ids.iter().position(|&id| id == current_id) {
+                let prev_pos = if current_pos == 0 {
+                    buffer_ids.len() - 1
+                } else {
+                    current_pos - 1
+                };
+                self.current_buffer_id = Some(buffer_ids[prev_pos]);
+            }
+        }
+    }
+    
     // Delegated cursor operations for current buffer
     pub fn move_cursor_left(&mut self) {
         if let Some(buffer) = self.current_buffer_mut() {

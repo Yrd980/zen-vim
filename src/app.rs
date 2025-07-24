@@ -170,7 +170,11 @@ impl App {
             match picker.handle_key(key).await? {
                 Some(result) => {
                     self.picker = None;
-                    if let Some(path) = result.selected_file {
+                    if let Some(buffer_id) = result.selected_buffer_id {
+                        // Switch to existing buffer
+                        self.buffer_manager.switch_buffer(buffer_id);
+                    } else if let Some(path) = result.selected_file {
+                        // Open new file
                         self.buffer_manager.open_file(path)?;
                     }
                 }
