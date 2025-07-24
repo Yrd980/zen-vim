@@ -78,7 +78,7 @@ zen-vim
 zen-vim file1.txt file2.rs
 
 # Show dashboard even with files
-zen-vim --dashboard file.txt
+zen-vim -D file.txt
 
 # Enable debug logging
 zen-vim --debug
@@ -105,11 +105,11 @@ zen-vim --debug
 **Leader Key Commands** (`<space>`):
 | Combination | Action |
 |-------------|--------|
-| `<space>pf` | Find Files |
-| `<space>pt` | Grep Text |
-| `<space>pb` | Buffer List |
-| `<space>pr` | Resume Session |
-| `<space>rn` | Rename File |
+| `<space>f` | Find Files |
+| `<space>/` | Grep Text |
+| `<space>b` | Buffer List |
+| `<space>s` | Resume Session |
+| `<space>r` | Rename File |
 | `<space>d` | Show Dashboard |
 | `<space>q` | Quit |
 

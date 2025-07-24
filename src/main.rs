@@ -21,7 +21,7 @@ struct Args {
     files: Vec<PathBuf>,
     
     /// Show dashboard even with files
-    #[arg(short, long)]
+    #[arg(short = 'D', long)]
     dashboard: bool,
     
     /// Config directory

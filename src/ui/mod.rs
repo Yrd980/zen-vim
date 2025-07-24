@@ -1,5 +1,4 @@
 pub mod dashboard;
-pub mod editor;
 
 use anyhow::Result;
 use ratatui::{

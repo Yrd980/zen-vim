@@ -141,6 +141,14 @@ impl App {
                             self.dashboard = None;
                             self.show_buffer_picker().await?;
                         }
+                        "resume" => {
+                            self.dashboard = None;
+                            self.buffer_manager.resume_session()?;
+                        }
+                        "rename" => {
+                            self.dashboard = None;
+                            self.buffer_manager.rename_current_file()?;
+                        }
                         _ => {}
                     }
                 }
@@ -173,14 +181,12 @@ impl App {
             KeyCode::Char('q') if self.mode_manager.current_mode() == Mode::Normal => {
                 return Ok(true); // Quit
             }
-            KeyCode::Char(' ') => {
-                // Leader key - handle leader combinations
-                if self.mode_manager.current_mode() == Mode::Normal {
-                    return self.handle_leader_key().await;
-                }
+            KeyCode::Char(' ') if self.mode_manager.current_mode() == Mode::Normal => {
+                // Leader key - only in normal mode
+                return self.handle_leader_key().await;
             }
             _ => {
-                // Pass to mode manager
+                // Pass to mode manager (handles insert, visual, command modes)
                 self.mode_manager.handle_key(key, &mut self.buffer_manager)?;
             }
         }
@@ -193,13 +199,25 @@ impl App {
         if event::poll(Duration::from_millis(1000))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    KeyCode::Char('p') => {
-                        // Picker prefix
-                        return self.handle_picker_leader().await;
+                    KeyCode::Char('f') => {
+                        // Find files
+                        self.show_file_picker().await?;
+                    }
+                    KeyCode::Char('/') => {
+                        // Grep text
+                        self.show_grep_picker().await?;
+                    }
+                    KeyCode::Char('b') => {
+                        // Buffers
+                        self.show_buffer_picker().await?;
+                    }
+                    KeyCode::Char('s') => {
+                        // Resume session
+                        self.buffer_manager.resume_session()?;
                     }
                     KeyCode::Char('r') => {
-                        // Resume/rename prefix
-                        return self.handle_resume_leader().await;
+                        // Rename file
+                        self.buffer_manager.rename_current_file()?;
                     }
                     KeyCode::Char('d') => {
                         // Show dashboard
@@ -215,44 +233,7 @@ impl App {
         Ok(false)
     }
     
-    async fn handle_picker_leader(&mut self) -> Result<bool> {
-        if event::poll(Duration::from_millis(1000))? {
-            if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Char('f') => {
-                        self.show_file_picker().await?;
-                    }
-                    KeyCode::Char('t') => {
-                        self.show_grep_picker().await?;
-                    }
-                    KeyCode::Char('b') => {
-                        self.show_buffer_picker().await?;
-                    }
-                    _ => {}
-                }
-            }
-        }
-        Ok(false)
-    }
-    
-    async fn handle_resume_leader(&mut self) -> Result<bool> {
-        if event::poll(Duration::from_millis(1000))? {
-            if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Char('n') => {
-                        // Rename current file
-                        self.buffer_manager.rename_current_file()?;
-                    }
-                    KeyCode::Char('r') => {
-                        // Resume last session
-                        self.buffer_manager.resume_session()?;
-                    }
-                    _ => {}
-                }
-            }
-        }
-        Ok(false)
-    }
+
     
     async fn show_file_picker(&mut self) -> Result<()> {
         self.picker = Some(Picker::new_file_picker(&self.config).await?);

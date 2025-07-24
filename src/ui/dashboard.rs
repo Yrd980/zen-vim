@@ -23,10 +23,11 @@ const ZEN_VIM_ART: &[&str] = &[
 ];
 
 const MENU_ITEMS: &[(&str, &str, &str)] = &[
-    ("pf", "Find Files", "files"),
-    ("pt", "Grep Text", "grep"),
-    ("pb", "Buffers", "buffers"),
-    ("pr", "Resume Session", "resume"),
+    ("f", "Find Files", "files"),
+    ("/", "Grep Text", "grep"),
+    ("b", "Buffers", "buffers"),
+    ("s", "Resume Session", "resume"),
+    ("r", "Rename File", "rename"),
     ("q", "Quit", "quit"),
 ];
 
