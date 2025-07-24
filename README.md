@@ -1,89 +1,195 @@
-````markdown
 # 🧘 Zen-Vim
 
-> Minimalist Neovim wrapper inspired by [snack.nvim](https://github.com/folke/snack.nvim), crafted for geeks who love clarity, speed, and simplicity.
+> **A minimalist Vim-like terminal editor written in Rust**, inspired by Neovim + Snacks.nvim philosophy.
 
-Zen-Vim is a distraction-free editor environment that adheres to the "less is more" philosophy. Designed with intuitive leader-key navigation, fast picker UIs, and zero visual clutter — it's your stable, scriptable, hackable Vim core.
+Zen-Vim is a from-scratch terminal text editor that brings the zen of minimal UI with the power of modal editing. Built for speed, clarity, and hackability.
 
 ---
 
 ## ✨ Features
 
-- 🚀 Ultra-fast startup with clean dashboard
-- 🔎 Powerful pickers: files, text grep, buffers
-- 💾 Resume last session or file with a keypress
-- ✍️ Rename current file in-place
-- 🎯 Minimal UI — no gutter, no LSP, no trees
-- 🔧 snack.nvim-compatible pickers
-- 🧩 Plugin-ready: extend without breaking core
+- 🚀 **Modal Editing**: Full Vim-like Normal/Insert/Visual modes
+- 🔎 **Smart Pickers**: File finder, live grep, buffer switcher
+- 💾 **Session Management**: Auto-save and restore your workspace
+- ✍️ **File Operations**: Rename, save, manage multiple buffers
+- 🎯 **Minimal UI**: Clean terminal interface, no bloat
+- 🧩 **Extensible**: Built with modularity in mind
+- ⚡ **Fast**: Rust performance with async file operations
 
 ---
 
-## 📁 File Structure
+## 🏗️ Architecture
 
-```txt
-~/.config/zenvim/
-├── init.lua               # Entry point
-├── plugins.lua            # Plugin loader
-├── keymaps.lua            # Leader key mappings
-├── core/
-│   ├── rename.lua         # Rename logic
-│   └── resume.lua         # Session restore
-└── ui/
-    ├── dashboard.lua      # ASCII dashboard
-    └── pick.lua           # Picker UI proxy (snack wrapper)
-````
+```
+zen-vim/
+├── src/
+│   ├── main.rs          # Entry point & CLI
+│   ├── app.rs           # Main application loop
+│   ├── config.rs        # TOML configuration
+│   ├── modes/           # Modal editing system
+│   ├── core/            # Buffer & cursor management
+│   │   ├── buffer.rs    # Text editing operations
+│   │   ├── cursor.rs    # Position tracking
+│   │   └── session.rs   # Save/restore state
+│   ├── ui/              # Terminal rendering
+│   │   ├── dashboard.rs # Zen startup screen
+│   │   └── mod.rs       # Editor UI
+│   └── picker.rs        # File/grep/buffer pickers
+├── Cargo.toml           # Rust dependencies
+└── README.md
+```
+
+---
+
+## 🛠️ Installation
+
+### Prerequisites
+- **Rust** (1.70+): Install from [rustup.rs](https://rustup.rs/)
+- **ripgrep** (optional): For faster text search
+
+### Build from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/zen-vim
+cd zen-vim
+
+# Build release binary
+cargo build --release
+
+# Install to system (optional)
+cargo install --path .
+
+# Or run directly
+cargo run
+```
 
 ---
 
 ## 🧪 Usage
 
-### Launch Neovim:
+### Launch the Editor
 
 ```bash
-NVIM_APPNAME=zenvim nvim
+# Start with dashboard
+zen-vim
+
+# Open specific files
+zen-vim file1.txt file2.rs
+
+# Show dashboard even with files
+zen-vim --dashboard file.txt
+
+# Enable debug logging
+zen-vim --debug
 ```
 
-### Keybindings (Default `<leader>` is `<space>`):
+### Keybindings
 
-| Action         | Keybinding   |
-| -------------- | ------------ |
-| 🗂 Find File   | `<leader>pf` |
-| 🔍 Grep Text   | `<leader>pt` |
-| 📚 Buffers     | `<leader>pb` |
-| 🔁 Resume File | `<leader>pr` |
-| ✏️ Rename File | `<leader>rn` |
+**Normal Mode** (Default):
+| Key | Action |
+|-----|--------|
+| `h/j/k/l` | Move cursor left/down/up/right |
+| `w/b` | Move word forward/backward |
+| `0/$` | Move to line start/end |
+| `g/G` | Move to file start/end |
+| `i/a` | Enter insert mode (before/after cursor) |
+| `I/A` | Enter insert mode (line start/end) |
+| `o/O` | New line below/above and insert |
+| `v` | Enter visual mode |
+| `x` | Delete character |
+| `d` | Delete line |
+| `u` | Undo |
+| `Ctrl+r` | Redo |
+
+**Leader Key Commands** (`<space>`):
+| Combination | Action |
+|-------------|--------|
+| `<space>pf` | Find Files |
+| `<space>pt` | Grep Text |
+| `<space>pb` | Buffer List |
+| `<space>pr` | Resume Session |
+| `<space>rn` | Rename File |
+| `<space>d` | Show Dashboard |
+| `<space>q` | Quit |
+
+**Insert Mode**:
+- `Esc` - Return to Normal mode
+- Regular typing, Enter, Backspace, etc.
 
 ---
 
-## 📌 Requirements
+## ⚙️ Configuration
 
-* Neovim >= 0.9
-* [lazy.nvim](https://github.com/folke/lazy.nvim)
-* (Optional) [snack.nvim](https://github.com/folke/snack.nvim)
+Zen-vim creates a config file at `~/.config/zen-vim/config.toml`:
 
----
+```toml
+[ui]
+theme = "zen"
+show_line_numbers = false
+show_status_line = false
+tab_width = 2
+wrap_lines = false
 
-## 🧱 Installation
+[keymaps]
+leader = " "
+timeout_ms = 1000
 
-Clone this into your config directory:
+[picker]
+file_ignore_patterns = [".git", "node_modules", "target", "*.pyc"]
+max_results = 100
+preview_enabled = true
 
-```bash
-git clone https://github.com/YOUR_USERNAME/zenvim ~/.config/zenvim
-```
-
-Then launch it with:
-
-```bash
-NVIM_APPNAME=zenvim nvim
+[dashboard]
+show_recent_files = true
+max_recent_files = 5
+custom_header = ""
 ```
 
 ---
 
 ## 🧠 Philosophy
 
-Zen-Vim obeys **Open–Closed Principle**:
+Zen-Vim follows the **"Less is More"** principle:
 
-> “Open for extension, closed for modification.”
+- **Minimal by Design**: No unnecessary UI elements
+- **Modal Efficiency**: Vim-style editing for speed
+- **Focused Experience**: Distraction-free text editing
+- **Extensible Core**: Build features without bloat
 
-Instead of bloating the core, you extend it with optional pickers, tips, or dash modules.
+Instead of feature creep, we prioritize:
+- ⚡ **Performance**: Fast startup and operations
+- 🎯 **Clarity**: Clean, readable interface
+- 🔧 **Stability**: Reliable core functionality
+
+---
+
+## 🏗️ Development
+
+### Running Tests
+```bash
+cargo test
+```
+
+### Code Structure
+- **Modal System**: Vim-like modes in `src/modes/`
+- **Buffer Management**: Text operations in `src/core/buffer.rs`
+- **UI Rendering**: Terminal UI with Ratatui in `src/ui/`
+- **Picker System**: File/grep functionality in `src/picker.rs`
+
+### Adding Features
+1. Fork the repository
+2. Create a feature branch
+3. Implement your changes
+4. Add tests
+5. Submit a pull request
+
+---
+
+## 📝 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+---
+
+**Built with ❤️ in Rust** | Inspired by Vim, Neovim, and the zen of simplicity
