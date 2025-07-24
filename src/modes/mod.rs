@@ -47,8 +47,8 @@ impl ModeManager {
         self.last_mode = self.current_mode;
         self.current_mode = mode;
         
-        // Clear command buffer when entering command mode (unless it's a search)
-        if mode == Mode::Command && !self.command_buffer.starts_with('/') {
+        // Clear command buffer when entering command mode 
+        if mode == Mode::Command {
             self.command_buffer.clear();
         }
     }
@@ -92,18 +92,26 @@ impl ModeManager {
             
             // Word movement
             KeyCode::Char('w') => {
-                buffer_manager.move_word_forward();
+                if let Some(buffer) = buffer_manager.current_buffer_mut() {
+                    buffer.cursor.move_word_forward(&buffer.content);
+                }
             }
             KeyCode::Char('W') => {
                 // WORD movement (whitespace-separated)
-                buffer_manager.move_word_forward(); // TODO: implement WORD vs word
+                if let Some(buffer) = buffer_manager.current_buffer_mut() {
+                    buffer.cursor.move_word_forward_whitespace(&buffer.content);
+                }
             }
             KeyCode::Char('b') => {
-                buffer_manager.move_word_backward();
+                if let Some(buffer) = buffer_manager.current_buffer_mut() {
+                    buffer.cursor.move_word_backward(&buffer.content);
+                }
             }
             KeyCode::Char('B') => {
                 // WORD movement backward (whitespace-separated)
-                buffer_manager.move_word_backward(); // TODO: implement WORD vs word
+                if let Some(buffer) = buffer_manager.current_buffer_mut() {
+                    buffer.cursor.move_word_backward_whitespace(&buffer.content);
+                }
             }
             KeyCode::Char('e') => {
                 // Move to end of word
@@ -207,6 +215,18 @@ impl ModeManager {
                     self.last_search_pattern = word.clone();
                     self.search_in_buffer(&word, buffer_manager);
                 }
+            }
+            KeyCode::Char('#') => {
+                // Search word under cursor backward
+                if let Some(word) = self.get_word_under_cursor(buffer_manager) {
+                    self.last_search_pattern = word.clone();
+                    self.search_backward_in_buffer(&word, buffer_manager);
+                }
+            }
+            
+            // Case toggle
+            KeyCode::Char('~') => {
+                self.toggle_case_at_cursor(buffer_manager);
             }
             
             // Buffer navigation
@@ -446,6 +466,30 @@ impl ModeManager {
             }
         } else {
             None
+        }
+    }
+    
+    fn toggle_case_at_cursor(&mut self, buffer_manager: &mut BufferManager) {
+        if let Some(buffer) = buffer_manager.current_buffer_mut() {
+            let pos = buffer.cursor.position();
+            if let Some(line) = buffer.content.get_mut(pos.row) {
+                let chars: Vec<char> = line.chars().collect();
+                if pos.col < chars.len() {
+                    let mut new_chars = chars;
+                    let ch = new_chars[pos.col];
+                    new_chars[pos.col] = if ch.is_uppercase() {
+                        ch.to_lowercase().next().unwrap_or(ch)
+                    } else {
+                        ch.to_uppercase().next().unwrap_or(ch)
+                    };
+                    
+                    *line = new_chars.iter().collect();
+                    buffer.modified = true;
+                    
+                    // Move cursor forward after toggle
+                    buffer.cursor.move_right(&buffer.content);
+                }
+            }
         }
     }
 } 
