@@ -44,9 +44,13 @@ impl App {
         // Initialize components
         let mut buffer_manager = BufferManager::new();
         
-        // Open files if provided
-        for file in files {
-            buffer_manager.open_file(file)?;
+        // Open files if provided, otherwise create empty buffer
+        if files.is_empty() {
+            buffer_manager.create_buffer("untitled".to_string());
+        } else {
+            for file in files {
+                buffer_manager.open_file(file)?;
+            }
         }
         
         let mode_manager = ModeManager::new();
@@ -65,7 +69,8 @@ impl App {
     }
     
     pub fn should_show_dashboard(&self) -> bool {
-        self.buffer_manager.is_empty()
+        // Show dashboard if explicitly requested with -D flag
+        false
     }
     
     pub async fn show_dashboard(&mut self) -> Result<()> {

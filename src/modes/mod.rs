@@ -25,6 +25,7 @@ impl std::fmt::Display for Mode {
 pub struct ModeManager {
     current_mode: Mode,
     last_mode: Mode,
+    command_buffer: String,
 }
 
 impl ModeManager {
@@ -32,6 +33,7 @@ impl ModeManager {
         Self {
             current_mode: Mode::Normal,
             last_mode: Mode::Normal,
+            command_buffer: String::new(),
         }
     }
     
@@ -42,6 +44,22 @@ impl ModeManager {
     pub fn set_mode(&mut self, mode: Mode) {
         self.last_mode = self.current_mode;
         self.current_mode = mode;
+        
+        // Clear command buffer when entering command mode (unless it's a search)
+        if mode == Mode::Command && !self.command_buffer.starts_with('/') {
+            self.command_buffer.clear();
+        }
+    }
+    
+    pub fn set_command_mode_with_prefix(&mut self, prefix: char) {
+        self.last_mode = self.current_mode;
+        self.current_mode = Mode::Command;
+        self.command_buffer.clear();
+        self.command_buffer.push(prefix);
+    }
+    
+    pub fn command_buffer(&self) -> &str {
+        &self.command_buffer
     }
     
     pub fn handle_key(&mut self, key: KeyEvent, buffer_manager: &mut BufferManager) -> Result<()> {
@@ -74,8 +92,26 @@ impl ModeManager {
             KeyCode::Char('w') => {
                 buffer_manager.move_word_forward();
             }
+            KeyCode::Char('W') => {
+                // WORD movement (whitespace-separated)
+                buffer_manager.move_word_forward(); // TODO: implement WORD vs word
+            }
             KeyCode::Char('b') => {
                 buffer_manager.move_word_backward();
+            }
+            KeyCode::Char('B') => {
+                // WORD movement backward (whitespace-separated)
+                buffer_manager.move_word_backward(); // TODO: implement WORD vs word
+            }
+            KeyCode::Char('e') => {
+                // Move to end of word
+                buffer_manager.move_word_forward();
+                buffer_manager.move_cursor_left(); // Adjust to end of word
+            }
+            KeyCode::Char('E') => {
+                // Move to end of WORD
+                buffer_manager.move_word_forward();
+                buffer_manager.move_cursor_left(); // Adjust to end of word
             }
             
             // Line navigation
@@ -124,6 +160,10 @@ impl ModeManager {
             }
             KeyCode::Char(':') => {
                 self.set_mode(Mode::Command);
+            }
+            KeyCode::Char('/') => {
+                // Search mode - enter command mode with / prefix
+                self.set_command_mode_with_prefix('/');
             }
             
             // Deletion
@@ -190,12 +230,46 @@ impl ModeManager {
                 self.set_mode(Mode::Normal);
             }
             KeyCode::Enter => {
-                // TODO: Execute command
+                self.execute_command(&self.command_buffer.clone(), buffer_manager)?;
                 self.set_mode(Mode::Normal);
             }
-            // TODO: Implement command input
+            KeyCode::Backspace => {
+                self.command_buffer.pop();
+            }
+            KeyCode::Char(c) => {
+                self.command_buffer.push(c);
+            }
             _ => {}
         }
+        Ok(())
+    }
+    
+    fn execute_command(&mut self, command: &str, buffer_manager: &mut BufferManager) -> Result<()> {
+        let trimmed = command.trim();
+        
+        match trimmed {
+            "q" | "quit" => {
+                // For now, just return to normal mode - app handles quit with space+q
+            }
+            "w" | "write" => {
+                let _ = buffer_manager.save_current();
+            }
+            "wq" => {
+                let _ = buffer_manager.save_current();
+                // For now, just return to normal mode
+            }
+            cmd if cmd.starts_with("w ") => {
+                // Save as - extract filename
+                let filename = &cmd[2..].trim();
+                if let Some(buffer) = buffer_manager.current_buffer_mut() {
+                    let _ = buffer.save_as(filename);
+                }
+            }
+            _ => {
+                // Unknown command - ignore for now
+            }
+        }
+        
         Ok(())
     }
 } 

@@ -11,7 +11,7 @@ use ratatui::{
 
 use crate::config::Config;
 use crate::core::BufferManager;
-use crate::modes::ModeManager;
+use crate::modes::{Mode, ModeManager};
 
 pub use dashboard::Dashboard;
 
@@ -38,15 +38,17 @@ impl UI {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Min(1),      // Editor area
-                Constraint::Length(1),   // Status line (if enabled)
+                Constraint::Length(1),   // Status/command line
             ])
             .split(area);
         
         // Render editor
         self.render_editor(frame, buffer_manager, chunks[0]);
         
-        // Render status line if enabled
-        if self.config.ui.show_status_line {
+        // Render status line or command line
+        if mode_manager.current_mode() == Mode::Command {
+            self.render_command_line(frame, mode_manager, chunks[1]);
+        } else if self.config.ui.show_status_line {
             self.render_status_line(frame, buffer_manager, mode_manager, chunks[1]);
         }
     }
@@ -158,5 +160,19 @@ impl UI {
             .style(Style::default().bg(Color::DarkGray));
         
         frame.render_widget(status_line, area);
+    }
+    
+    fn render_command_line(&self, frame: &mut Frame, mode_manager: &ModeManager, area: Rect) {
+        let command_text = format!(":{}", mode_manager.command_buffer());
+        let command_line = Paragraph::new(command_text)
+            .style(Style::default().fg(Color::White).bg(Color::DarkGray));
+        
+        frame.render_widget(command_line, area);
+        
+        // Set cursor at end of command
+        let cursor_x = area.x + 1 + mode_manager.command_buffer().len() as u16;
+        if cursor_x < area.x + area.width {
+            frame.set_cursor(cursor_x, area.y);
+        }
     }
 } 
